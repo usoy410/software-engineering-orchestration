@@ -139,6 +139,7 @@ Claude tokens go to review and short tasks; antigravity absorbs the long coding 
 
 - `Unknown flag --app` from `orca-ide` (Arch/Linux package): `/usr/bin/orca-ide` is an Electron launcher that injects `--app`. Use the `orca` shim in `~/.config/orca/linux-orca-cli-shim/orca` (on PATH inside Orca terminals) or `/usr/lib/orca-ide/bin/orca-ide`. Verify with `orca status --json`.
 - Bare `orca` starting speech: that is the GNOME screen reader (`/usr/bin/orca`), not Orca ADE. Use the shim path instead.
+- Workers stopping for tool permission: unattended runs need prompts off. Opt in by putting `agent-launch: autonomous` in `.orca/policies/launch.md`; the coordinator then launches each worker in its own Orca terminal as `claude --dangerously-skip-permissions` or `agy --dangerously-skip-permissions`. Alternatively set those commands as Orca's agent command overrides (Settings > Agents). This removes all permission guardrails inside the worker's worktree, so use it only on repos and machines you trust.
 - A worker stuck on an agent-side prompt: the coordinator retries once with a fresh worker on the same agent (`worker-start --task <id> --agent antigravity --retry-of <dispatch_id>` for heavy roles), then labels `agent-needs-human`.
 
 ## Customize
