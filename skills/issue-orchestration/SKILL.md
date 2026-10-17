@@ -11,7 +11,7 @@ Coordinator loop. Orca decides WHO works and WHEN. Installed engineering skills 
 
 1. Load the `orchestration` skill (Orca) first and follow its CLI-resolution and supervised-loop rules. Linux caveat: on a machine where `command -v orca` resolves to Orca's own shim (`~/.config/orca/linux-orca-cli-shim/orca`) and `orca status --json` returns `ok: true`, use `orca`; the "use `orca-ide`" rule is for hosts where bare `orca` is the GNOME screen reader (`/usr/bin/orca`). If `/usr/bin/orca-ide` fails with `Unknown flag --app`, that wrapper is broken for CLI use: use `orca` (shim) or `/usr/lib/orca-ide/bin/orca-ide` instead. Pick one executable and keep it for the whole run. Do not duplicate them here. Never substitute a non-Orca subagent tool.
 2. `gh auth status` passes. Resolve the **queue label** once per run: the user's explicit choice, else the `ready-for-agent` mapping in `docs/agents/triage-labels.md` (written by `/setup-matt-pocock-skills`; the real string may differ from the canonical name), else `ready-for-agent` if that label exists in the repo, else `agent-ready`. Never relabel the user's issues to fit. Ensure these state labels exist (create missing with `gh label create`): `agent-in-progress`, `agent-review`, `agent-blocked`, `agent-needs-human`, `agent-completed` 
-3. Engineering skills from https://github.com/mattpocock/skills are installed for every worker agent (`npx skills@latest add mattpocock/skills -a <agent>`; Codex/Claude plugins also work, pick one method per agent). Run `/setup-matt-pocock-skills` once per repo (GitHub tracker, labels, docs location). Roles use: implement, tdd, codebase-design, diagnosing-bugs, code-review, pr, triage, research, domain-modeling. If one is missing, the worker proceeds without it and says so in its report.
+3. Engineering skills from https://github.com/mattpocock/skills are installed for every worker agent (`npx skills@latest add mattpocock/skills -a claude-code` and `-a antigravity`; Claude plugins also work, pick one method per agent). Run `/setup-matt-pocock-skills` once per repo (GitHub tracker, labels, docs location). Roles use: implement, tdd, codebase-design, diagnosing-bugs, code-review, pr, triage, research, domain-modeling. If one is missing, the worker proceeds without it and says so in its report.
 
 ## Roles
 
@@ -20,28 +20,28 @@ Workers do not see this skill directory: **inline the role file text into every 
 
 | Role | Default agent | Verdicts |
 |---|---|---|
-| implementer | codex | `IMPLEMENTATION_COMPLETE` |
-| pr-opener (merger role, open phase) | codex | PR URL |
+| implementer | antigravity | `IMPLEMENTATION_COMPLETE` |
+| pr-opener (merger role, open phase) | claude | PR URL |
 | reviewer (`code-review-swarm`, runs on the open PR) | claude | `APPROVED` / `CHANGES_REQUESTED` |
-| code-fixer | codex | `FIXES_COMPLETE` / `ESCALATE` |
-| merger (merge phase) | codex | merged |
+| code-fixer | antigravity | `FIXES_COMPLETE` / `ESCALATE` |
+| merger (merge phase) | claude | merged |
 | issue-analyzer (optional) | claude | `READY_FOR_IMPLEMENTATION` / `BLOCKED` |
-| ci-fixer (optional) | codex | `CI_FIX_COMPLETE` / `ESCALATE` |
-| conflict-resolver (optional) | codex | `RESOLVED` / `ESCALATE` |
+| ci-fixer (optional) | antigravity | `CI_FIX_COMPLETE` / `ESCALATE` |
+| conflict-resolver (optional) | antigravity | `RESOLVED` / `ESCALATE` |
 
 Reviewer agent MUST differ from the implementer's and code-fixer's agent. Implementer and code-fixer never approve or merge. Only the merger merges, and only after the coordinator confirms all gates.
 Start with MVP: implementer, merger, reviewer, code-fixer. Add optional roles only when the user asks or the failure mode appears.
-Agents are defaults; honor user overrides. Supported `--agent` values: `codex`, `claude`, `opencode`, `antigravity` (or any other agent id Orca lists). The reviewer-differs rule still applies to every assignment.
+Only two agents: `claude` (review and all light work) and `antigravity` (`agy`; all token-heavy work). Never dispatch `codex`, including as a retry or fallback. Honor user overrides between these two; the reviewer-differs rule still applies to every assignment.
 
 ### Token optimization
 
-Spend premium tokens only where judgment is hard. Route by role weight, using `--agent` and, where the agent supports it, `--model` / `--effort` (check `worker-start --help`; Antigravity takes `--model`; OpenCode picks models from its own config):
+Claude tokens go to judgment and short tasks; Antigravity absorbs the long, token-hungry coding work. Route by role weight, using `--agent` and, where the agent supports it, `--model` / `--effort` (check `worker-start --help`; Antigravity takes `--model`):
 
 | Weight | Roles | Route |
 |---|---|---|
-| Light (mechanical) | pr-opener, merger, issue-analyzer, ci-fixer log triage | cheapest capable agent/model: `antigravity` fast model, or `opencode` with a small model |
-| Medium | reviewer swarm lenses | `antigravity` fast tier by default; `--deep` only for risky diffs (auth, data, migrations) |
-| Heavy | implementer, code-fixer, conflict-resolver | strongest coding agent, e.g. `codex` or `claude` |
+| Light (low token) | pr-opener, merger, issue-analyzer | `claude`, small/fast model (haiku or sonnet) |
+| Review | reviewer swarm lenses | `claude`; fast tier lenses by default, `--deep` only for risky diffs (auth, data, migrations) |
+| Heavy (high token) | implementer, code-fixer, ci-fixer, conflict-resolver | `antigravity` |
 
 Also: one worker per task (no idle terminals; release settled workers), put only the needed context in each `--spec` (issue body, findings, role text, not the whole history), and stop at retry limits instead of looping. Never downgrade the reviewer to the same agent as the implementer to save tokens.
 
@@ -66,11 +66,10 @@ git pull base; next issue; stop when none eligible.
 - Always pull before branching: after each merge and before creating the next issue's worktree, update the base branch (`git fetch origin && git checkout <base> && git pull --ff-only` in the primary checkout), then create the worktree from that fresh base (`--base-branch <base>`). Never start a new issue from a stale base, or it will conflict with the PR just merged. If the pull is not a fast-forward, label `agent-needs-human` and stop the loop.
 - Worktree per issue, branch `agent/issue-<N>-<slug>`. Implementer, code-fixer, ci-fixer, and resolver share it; reviewer reads it.
 - Review happens on the PR, never before it exists. Pass the reviewer the PR number so it diffs with `gh pr diff`.
-- Codex launch policy: if `.orca/policies/codex.md` contains `codex-launch: unsandboxed` (opt-in; default is plain `--agent codex`), start every codex worker through its own terminal so Codex never stops on approval prompts: `orca terminal create --worktree <selector> --command 'codex --dangerously-bypass-approvals-and-sandbox'` (add `--dangerously-bypass-hook-trust` if the hooks prompt appears), then `worker-start --spec ... --worktree <selector> --terminal <handle>`. Applies to codex only; other agents keep `--agent`. If the policy file is absent, never use the bypass flags.
 - Dispatch with `worker-start --spec ... --worktree ... --agent ...`; wait with `check --wait --types worker_done,escalation,question`. Parse the verdict token from the worker_done summary. No verdict or unknown token counts as failed attempt.
 - The merge gate is the latest review verdict on the PR's current head SHA (`gh pr view N --json headRefOid`). Any push (fix, CI fix, conflict resolution) invalidates earlier approval; re-run the swarm. Never merge on a stale approval.
 - The reviewer posts its swarm summary as a PR comment. The coordinator holds the verdict and routes; do not trust a verdict that is not in the worker_done summary.
-- A worker blocked on an agent-side prompt (e.g. Codex hooks review) is not progressing. After one empty wait with the terminal showing the prompt, retry the Task once with another agent (`--retry-of`), following the orchestration skill's recovery rules (positive proof the first worker stopped); if that also fails, label `agent-needs-human` and move on.
+- A worker blocked on an agent-side prompt is not progressing. After one empty wait with the terminal showing the prompt, retry the Task once with a fresh worker (`--retry-of`), following the orchestration skill's recovery rules (positive proof the first worker stopped). Retry heavy roles on `antigravity` and light roles on `claude`; never move a heavy role to `claude` (it would then review its own work) and never fall back to `codex`. If the retry also fails, label `agent-needs-human` and move on.
 - Release each settled worker per the orchestration skill's completion accounting.
 
 ## Limits

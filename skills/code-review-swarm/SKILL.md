@@ -9,7 +9,7 @@ Runs in the local agent session (no CI minutes). Spawns 4 parallel sub-agents, o
 
 ## Models
 
-Default: fast/budget tier for all 4 lenses (quota-friendly). With `--deep`: Standards and Spec on the strongest reasoning tier, Security and QA on fast or standard tier. Pick the harness's own tier names (e.g. Claude Code haiku/sonnet/opus, Codex mini/standard/reasoning, Antigravity flash/inherit/pro).
+Default: fast/budget tier for all 4 lenses (quota-friendly). With `--deep`: Standards and Spec on the strongest reasoning tier, Security and QA on fast or standard tier. Pick the harness's own tier names (Claude Code haiku/sonnet/opus; Antigravity flash/inherit/pro when run standalone there).
 
 ## 1. Pin target and capture diff
 

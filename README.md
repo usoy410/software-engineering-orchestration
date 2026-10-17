@@ -30,7 +30,7 @@ Global (all repositories):
 npx skills@latest add theheavenlyhacker/software-engineering-orchestration -a claude-code -g
 ```
 
-Replace `-a claude-code` with `codex`, `opencode`, etc., or omit it to choose interactively.
+Install for both worker agents: run it again with `-a antigravity`, or omit `-a` to choose interactively.
 
 Manual: copy `skills/*` into `.claude/skills/` (repo) or `~/.claude/skills/` (global).
 
@@ -123,26 +123,23 @@ ready-for-agent -> agent-in-progress -> agent-review -> agent-completed
 
 ## Agents
 
-Workers run as `codex`, `claude`, `opencode`, or `antigravity` via Orca's `--agent` (any agent id Orca lists works). Defaults: codex implements and fixes, claude reviews. Tell the coordinator to override per role (e.g. "use antigravity as reviewer"). Reviewer must differ from implementer.
+Workers run as `claude` or `antigravity` (`agy`) via Orca's `--agent`. Codex is not used. Defaults: claude reviews and handles every light task (PR open, merge, issue analysis); antigravity does every token-heavy task (implement, fix findings, fix CI, resolve conflicts). Reviewer must differ from implementer, which this split guarantees.
 
 ### Token optimization
 
-Premium tokens go to hard judgment; mechanical work goes to cheap agents.
+Claude tokens go to review and short tasks; antigravity absorbs the long coding work.
 
 | Weight | Roles | Route |
 |---|---|---|
-| Light | pr-opener, merger, issue-analyzer | `antigravity` fast model or `opencode` small model |
-| Medium | review swarm lenses | `antigravity` fast tier; `--deep` only for risky diffs |
-| Heavy | implementer, code-fixer, conflict-resolver | `codex` or `claude` |
-
-Example: "use antigravity for reviews and PR/merge, codex for implementation and fixes."
+| Light | pr-opener, merger, issue-analyzer | `claude`, small/fast model |
+| Review | review swarm lenses | `claude`; `--deep` only for risky diffs |
+| Heavy | implementer, code-fixer, ci-fixer, conflict-resolver | `antigravity` |
 
 ## Troubleshooting
 
 - `Unknown flag --app` from `orca-ide` (Arch/Linux package): `/usr/bin/orca-ide` is an Electron launcher that injects `--app`. Use the `orca` shim in `~/.config/orca/linux-orca-cli-shim/orca` (on PATH inside Orca terminals) or `/usr/lib/orca-ide/bin/orca-ide`. Verify with `orca status --json`.
 - Bare `orca` starting speech: that is the GNOME screen reader (`/usr/bin/orca`), not Orca ADE. Use the shim path instead.
-- Codex asks to review hooks on every spawn even after you trusted them: Orca launches Codex with its own managed home, so trust saved in `~/.codex/config.toml` does not carry over. If you control your hook sources, set Orca's Codex command override (Settings > Agents > codex command) to `codex --dangerously-bypass-hook-trust`. This skips only hook trust, not approvals or the sandbox, but it applies to every hook, so only use it with hooks you vet. Until then a blocked worker can be retried with another agent (`worker-start --task <id> --agent claude --retry-of <dispatch_id>`).
-- Codex asks "Would you like to run the following command?" (e.g. tests against local Postgres, which the sandbox blocks): this is Codex's own approval policy, not something the skills can answer. Unattended runs need it off. Either put `codex-launch: unsandboxed` in `.orca/policies/codex.md` (the coordinator then launches codex workers in a terminal running `codex --dangerously-bypass-approvals-and-sandbox`, untested against Orca's managed Codex home), or set Orca's Codex command override to the same command (add `--dangerously-bypass-hook-trust` if needed). Safer middle ground: `codex -a never -s workspace-write`, but sandboxed commands that need localhost network will then fail instead of prompting. Workers run in isolated worktrees, but the bypass removes all guardrails, so use it only on repos and machines you trust.
+- A worker stuck on an agent-side prompt: the coordinator retries once with a fresh worker on the same agent (`worker-start --task <id> --agent antigravity --retry-of <dispatch_id>` for heavy roles), then labels `agent-needs-human`.
 
 ## Customize
 
