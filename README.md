@@ -13,6 +13,7 @@ Also required:
 - [Orca](https://github.com/stablyai/orca) with its `orchestration` skill.
 - `gh` installed and authenticated (`gh auth status`) with permission to label, open PRs, and merge.
 - [mattpocock/skills](https://github.com/mattpocock/skills) installed for each worker agent: `npx skills@latest add mattpocock/skills -a <agent>`, then run `/setup-matt-pocock-skills` once per repo.
+- [ponytail](https://github.com/DietrichGebert/ponytail) installed for each worker agent (claude and antigravity). Code-writing roles (implementer, code-fixer, ci-fixer, conflict-resolver) use it to keep diffs minimal.
 - Labels: the queue label above plus state labels `agent-in-progress`, `agent-review`, `agent-blocked`, `agent-needs-human`, `agent-completed` (the coordinator creates missing ones).
 - Recommended: branch protection with required CI checks. The coordinator never bypasses it.
 

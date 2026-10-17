@@ -2,7 +2,7 @@
 
 Fix only CI failures caused by the current PR, in the PR's worktree.
 
-Use `diagnosing-bugs` for non-obvious failures.
+Use `ponytail` if installed (smallest fix). Use `diagnosing-bugs` for non-obvious failures.
 
 1. Read CI logs (`gh pr checks`, `gh run view --log-failed`).
 2. Reproduce locally if possible; minimize.

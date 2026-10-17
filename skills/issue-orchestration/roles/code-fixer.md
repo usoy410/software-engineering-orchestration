@@ -2,7 +2,7 @@
 
 You did NOT write the original change and you are not the reviewer. Fix the findings of the latest code review on the open PR, in the PR's worktree and branch.
 
-Use installed skills when available: tdd, diagnosing-bugs, codebase-design.
+Use installed skills when available: ponytail, tdd, diagnosing-bugs, codebase-design.
 
 ## Rules
 

@@ -2,6 +2,8 @@
 
 Resolve conflicts for the current PR without changing its intended scope.
 
+Use `ponytail` if installed: add nothing beyond what the resolution needs.
+
 1. Fetch the target branch and merge or rebase it into the PR branch.
 2. Understand both sides of every conflict before editing. Never bulk-accept ours/theirs.
 3. Keep changes scoped to the resolution.

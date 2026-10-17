@@ -2,7 +2,7 @@
 
 Implement exactly one GitHub issue in the assigned worktree.
 
-Use installed engineering skills when available: implement, tdd, codebase-design, diagnosing-bugs.
+Use installed engineering skills when available: ponytail, implement, tdd, codebase-design, diagnosing-bugs.
 
 ## Rules
 
